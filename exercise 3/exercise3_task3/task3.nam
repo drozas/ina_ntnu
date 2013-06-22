@@ -1,0 +1,96 @@
+set ns [new Simulator] ;# Create an instance of the Simulator class
+                       ;# "ns" refers to the instance
+$ns multicast          ;# Enable multicast
+
+set namfile "tcp.nam"    ;# Set "namfile" to be the animation trace log
+set nf [open $namfile w] ;# Open file ("nf" refers to filehandle)
+$ns namtrace-all $nf     ;# Enable the animation trace
+
+
+$ns color 0 red ;# Set red for the traffic class 0
+$ns color 1 blue ;# Set blue for the traffic class 1
+
+#We are gonna add 10 nodes
+set node(0) [$ns node] ;# Create node(0)
+set node(1) [$ns node] ;# Create node(1)
+set node(2) [$ns node] ;# Create node(2)
+set node(3) [$ns node] ;# Create node(3)
+set node(4) [$ns node] ;# Create node(4)
+set node(5) [$ns node] ;# Create node(5)
+set node(6) [$ns node] ;# Create node(6)
+set node(7) [$ns node] ;# Create node(7)
+set node(8) [$ns node] ;# Create node(8)
+set node(9) [$ns node] ;# Create node(9)
+
+#Adding the links and initialize the queue for "these links"
+$ns duplex-link $node(0) $node(1) 10Mb 10ms DropTail
+$ns duplex-link $node(0) $node(3) 10Mb 10ms DropTail
+$ns duplex-link $node(9) $node(3) 10Mb 10ms DropTail
+$ns duplex-link $node(3) $node(8) 10Mb 10ms DropTail
+$ns duplex-link $node(3) $node(2) 10Mb 10ms DropTail
+$ns duplex-link $node(4) $node(1) 10Mb 10ms DropTail
+$ns duplex-link $node(1) $node(2) 10Mb 10ms DropTail
+$ns duplex-link $node(1) $node(5) 10Mb 10ms DropTail
+$ns duplex-link $node(2) $node(6) 10Mb 10ms DropTail
+$ns duplex-link $node(2) $node(7) 10Mb 10ms DropTail
+
+#Take a look...maybe it is before...
+$ns duplex-link-op $node(0) $node(1) dynamic ;# Enable dynamic link (i.e. the link can
+                                             ;# be disconnected during simulation
+$ns rtproto Session                          ;# Enable Session Oriented Routing
+
+$ns duplex-link-op $node(0) $node(3) queuePos 0.5
+$ns duplex-link-op $node(9) $node(3) queuePos 0.5
+$ns duplex-link-op $node(3) $node(8) queuePos 0.5
+$ns duplex-link-op $node(3) $node(2) queuePos 0.5
+$ns duplex-link-op $node(4) $node(1) queuePos 0.5
+$ns duplex-link-op $node(1) $node(2) queuePos 0.5
+$ns duplex-link-op $node(1) $node(5) queuePos 0.5
+$ns duplex-link-op $node(2) $node(6) queuePos 0.5
+$ns duplex-link-op $node(2) $node(7) queuePos 0.5
+
+#This set the "redez-vouz" as node 0, and create the multicast group
+set mrthandle [$ns mrtproto CtrMcast] ;# Enable Sparse Mode Shared Tree
+$mrthandle set_c_rp $node(0)          ;# Set rendezvous point at node 0
+set group [Node allocaddr]            ;# Allocate multicast group address
+
+
+#CBR
+set cbr(0) [new Application/Traffic/CBR] ;# Create CBR traffic generator
+$cbr(0) set packetSize_ 1460          ;# Set packet size of CBR traffic generator
+$cbr(0) set interval_ 0.003           ;# Set packet transmission interval of CBR
+
+#This creates and UDP source
+set src(0) [new Agent/UDP]   ;# Create a UDP source instance
+$src(0) set class_ 0         ;# Set the traffic class of the UDP source
+$src(0) set dst_addr_ $group ;# Set dest. addr of the UDP source
+$src(0) set port_ 0          ;# Set dest. port of the UDP source to 0
+
+#This creates 3 LossMonitor
+set sink(0) [new Agent/LossMonitor] ;# Create an instance of the UDP sink
+set sink(1) [new Agent/LossMonitor] ;# Create an instance of the UDP link
+set sink(2) [new Agent/LossMonitor] ;# Create an instance of the UDP link
+
+
+#Associate source and sink 1
+$ns attach-agent $node(4) $src(0) ;# Place the TCP source -src(1)- on node(1)
+$ns attach-agent $node(5) $sink(0) ;# Place the TCP sink -sink(1)- on node(5)
+$ns attach-agent $node(6) $sink(1) ;# Place the TCP sink -sink(1)- on node(5)
+$ns attach-agent $node(8) $sink(2) ;# Place the TCP sink -sink(1)- on node(5)
+$cbr(0) attach-agent $src(0)       ;# Place the CBR traf.gen. on src(1)
+
+
+$ns at 0.2 "$node(5) join-group $sink(0) $group"
+
+$ns at 0.1 "$cbr(0) start" ;# Start CBR traf.gen. at time 0.3
+
+
+# Flush trace file, start animation tool, and exit simulator at time 5.0
+$ns at 10.0 "$ns flush-trace; exec nam -a $namfile; exit 0"
+
+
+# Start simulation
+$ns run
+
+
+

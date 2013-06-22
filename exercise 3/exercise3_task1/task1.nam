@@ -1,0 +1,46 @@
+set ns [new Simulator] ;# Create an instance of the Simulator class
+                       ;# "ns" refers to the instance
+
+set namfile "tcp.nam"    ;# Set "namfile" to be the animation trace log
+set nf [open $namfile w] ;# Open file ("nf" refers to filehandle)
+$ns namtrace-all $nf     ;# Enable the animation trace
+
+$ns color 0 red ;# Set red for the traffic class 0
+$ns color 1 blue ;# Set blue for the traffic class 1
+
+set node(0) [$ns node] ;# Create node(0)
+set node(1) [$ns node] ;# Create node(1)
+
+$ns duplex-link $node(0) $node(1) 10Mb 10ms DropTail
+
+$ns duplex-link-op $node(0) $node(1) queuePos 0.5
+
+set cbr(0) [new Application/Traffic/CBR] ;# Create CBR traffic generator
+$cbr(0) set packetSize_ 1460          ;# Set packet size of CBR traffic generator
+#$cbr(0) set interval_ 0.003           ;# Set packet transmission interval of CBR
+$cbr(0) set interval_ 0.00003 
+
+set src(0) [new Agent/TCP] ;# Create an instance of the TCP source
+$src(0) set window_ 100    ;# Set the maximum window size of the TCP source
+$src(0) set class_ 0       ;# Set the traffic class of the TCP source
+
+set sink(0) [new Agent/TCPSink] ;# Create an instance of the TCP sink
+
+$ns attach-agent $node(0) $src(0) ;# Place the TCP source -src(0)- on node(0)
+$ns attach-agent $node(1) $sink(0) ;# Place the TCP sink -sink(0)- on node(1)
+$cbr(0) attach-agent $src(0)       ;# Place the CBR traf.gen. on src(0)
+
+$ns connect $src(0) $sink(0) ;# Connect the TCP source and the TCP sink
+
+$ns at 0.0 "$cbr(0) start" ;# Start CBR traf.gen. at time 0.0
+
+# Flush trace file, start animation tool, and exit simulator at time 2.0
+$ns at 2.0 "$ns flush-trace; exec nam -a $namfile; exit 0"
+
+# Flush trace file, start animation tool, and exit simulator at til 2.0
+# $ns at 2.0 "$ns flush-trace; exit 0"
+
+# Start simulation
+$ns run
+
+
